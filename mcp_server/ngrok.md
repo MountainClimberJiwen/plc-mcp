@@ -6,7 +6,7 @@ Start-Process -FilePath "npx" -ArgumentList "-y", "supergateway", "--stdio", ".\
 
 C:\Users\Administrator\AppData\Local/ngrok/ngrok.yml
 
-#  .\mcp_server\ngrok.exe config add-authtoken 2lERWpl8scvGWpGxNlCNSsVqGhm_3QteHWZbLLxYWq1qdheNK
+#  .\mcp_server\ngrok.exe config add-authtoken <YOUR_NGROK_AUTHTOKEN>
 
 .\mcp_server\ngrok.exe http 8000
 

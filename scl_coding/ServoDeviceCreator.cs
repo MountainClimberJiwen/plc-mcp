@@ -1,0 +1,361 @@
+using System;
+using System.Linq;
+using Siemens.Engineering;
+using Siemens.Engineering.HW;
+using Siemens.Engineering.HW.Features;
+using System.IO;
+using Siemens.Engineering.SW;
+using Siemens.Engineering.Connection;
+
+
+namespace MyFirstApp
+{
+    public class ServoDeviceCreator
+    {
+        private readonly TiaPortal _tiaPortal;
+        private readonly Project _project;
+        private readonly PlcSoftware _plcSoftware;
+
+        public ServoDeviceCreator(TiaPortal tiaPortal, Project project, PlcSoftware plcSoftware)
+        {
+            _tiaPortal = tiaPortal ?? throw new ArgumentNullException(nameof(tiaPortal));
+            _project = project ?? throw new ArgumentNullException(nameof(project));
+            // _plcSoftware = plcSoftware ?? throw new ArgumentNullException(nameof(plcSoftware));
+        }
+
+        private DeviceItem FindProfinetInterface(Device device)
+        {
+            try
+            {
+                // 遍历设备的所有项查找PROFINET接口
+                foreach (var item in device.DeviceItems)
+                {
+                    // 检查当前项
+                    if (item.Name.Contains("PROFINET interface"))
+                    {
+                        return item;
+                    }
+
+                    // 检查子项
+                    foreach (var subItem in item.DeviceItems)
+                    {
+                        if (subItem.Name.Contains("PROFINET interface"))
+                        {
+                            return subItem;
+                        }
+                    }
+                }
+
+                throw new Exception("找不到PROFINET接口");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"查找PROFINET接口时出错: {ex.Message}");
+                throw;
+            }
+        }
+
+        public Device CreateCPU1513()
+        {
+            try
+            {
+                // 创建CPU设备
+                string cpuMlfb = "OrderNumber:6ES7 513-1AL02-0AB0/V2.6"; // CPU 1513-1 PN
+                
+                var cpu = _project.Devices.Find("PLC_1");
+                
+                if (cpu == null)
+                {
+                    Console.WriteLine("CPU 1513不存在，开始创建...");
+                    cpu = _project.Devices.CreateWithItem(cpuMlfb, "PLC_1", "PLC_1");
+                }
+                
+                return cpu;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"创建CPU失败: {ex.Message}");
+                throw;
+            }
+        }
+
+        public DeviceItem CreateV90Driver(string plcName, string driverName, int number)
+        {
+            try
+            {
+                Console.WriteLine($"开始创建V90驱动器 {driverName}...");
+                
+                // 1. 找到PLC设备
+                var plc = _project.Devices.Find(plcName);
+                if (plc == null)
+                {
+                    throw new Exception($"找不到PLC设备: {plcName}");
+                }
+                 Console.WriteLine("开始v90设备...");
+                string ioArticle = "GSD:GSDML-V2.32-SIEMENS-SINAMICS_V90-20190415.XML/DAP/IDD_V90PN-V4.7"; // IO Device 料号
+                string ioVersion = "v90";
+                try
+                {
+                    var ioDevice = _project.Devices.CreateWithItem("GSD:GSDML-V2.32-SIEMENS-SINAMICS_V90-20190415.XML/DAP/IDD_V90PN-V4.7", 
+                    "V90Driver1", 
+                    "V90Driver1");
+                    Console.WriteLine("v90设备创建成功！");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"创建v90设备失败: {ex.Message}");
+                }
+
+                // 2. 找到PROFINET接口
+                var pnInterface = FindProfinetInterface(plc);
+                if (pnInterface == null)
+                {
+                    throw new Exception("找不到PLC的PROFINET接口");
+                }
+
+                Console.WriteLine($"找到PROFINET接口: {pnInterface.Name}");
+
+                // 3. 使用V90的类型标识符
+                // 注意：这个标识符需要根据实际导入的GSDML文件来确定
+                string typeIdentifier = "GSD:GSDML-V2.32-SIEMENS-SINAMICS_V90-20190415.XML/DAP/IDD_V90PN-V4.7";
+                Console.WriteLine($"使用类型标识符: {typeIdentifier}");
+
+                // 4. 在PROFINET接口下创建V90驱动器
+                var driver = pnInterface.PlugNew(typeIdentifier, driverName, number);
+                
+                // 5. 配置PROFINET接口
+                ConfigureServoInterface(driver, number);
+                
+                Console.WriteLine($"V90驱动器 {driverName} 创建成功！");
+                return driver;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"创建驱动器失败: {ex.Message}");
+                if (ex.Message.Contains("Unknown TypeIdentifer") || ex.Message.Contains("TypeName"))
+                {
+                    Console.WriteLine("提示：V90驱动器创建失败，请检查：");
+                    Console.WriteLine("1. 确保已在TIA Portal中导入V90的GSDML文件");
+                    Console.WriteLine("2. 确保GSDML文件已正确导入到硬件目录");
+                    Console.WriteLine("3. 尝试在TIA Portal中手动添加一个V90驱动器，观察其属性");
+                    Console.WriteLine("4. 在TIA Portal中手动添加V90后，查看其'设备视图'中显示的类型标识符");
+                }
+                throw;
+            }
+        }
+
+        public void showDeivce(Device device)
+        {
+            Console.WriteLine("开始遍历设备 " + device.Name);
+            void TraverseDeviceItems(DeviceItem item, int depth)
+                {
+                    Console.WriteLine($"Item: {item.Name}, Type: {item.TypeIdentifier}, Depth: {depth}");
+
+                    foreach (DeviceItem subItem in item.DeviceItems)
+                    {
+                        TraverseDeviceItems(subItem, depth + 1);
+                    }
+                }
+
+            // 起点：设备的顶层 DeviceItems
+            foreach (DeviceItem item in device.DeviceItems)
+            {
+                TraverseDeviceItems(item, 0);
+            }
+            Console.WriteLine("遍历设备 " + device.Name + " 结束");
+        }
+
+        public void configPnDriver(Device device, string ip) 
+        {
+            try
+            {
+                SubnetComposition subnets = _project.Subnets;
+                var subnet = subnets.Find("PN/IE_2");
+                showDeivce(device);
+                var networkInterface = device.DeviceItems[1].DeviceItems
+                    .First(di => di.Name.Contains("PN-IO"));
+                var networkProvider = networkInterface.GetService<NetworkInterface>();
+                if (networkProvider != null)
+                {
+                    var node = networkProvider.Nodes[0];
+                    node.SetAttribute("Address", ip);
+                    node.SetAttribute("SubnetMask", "255.255.255.0");
+
+                    node.ConnectToSubnet(subnet);
+                    Console.WriteLine("PN-IO接口配置成功");
+                    // try
+                    // {
+                    //     var plcIface = networkProvider.Nodes.FirstOrDefault();
+                    //     plcIface.ConnectToSubnet(subnet);
+                    //     Console.WriteLine("CPU 加入网络成功");
+                    // }
+                    // catch (Exception ex)
+                    // {
+                    //     Console.WriteLine($"CPU 加入网络失败: {ex.Message}");
+                    // }
+                }
+
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"配置PROFINET接口失败: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                throw;
+            }
+        }
+        public void ConfigureProfinetInterface(Device device, Subnet subnet)
+        {
+            try
+            {
+                showDeivce(device);
+                var networkInterface = device.DeviceItems[1].DeviceItems
+                    .First(di => di.Name.Contains("PROFINET"));
+                var networkProvider = networkInterface.GetService<NetworkInterface>();
+                if (networkProvider != null)
+                {
+                    var node = networkProvider.Nodes[0];
+                    node.SetAttribute("Address", "192.168.0.111");
+                    node.SetAttribute("SubnetMask", "255.255.255.0");
+                    // node.SetAttribute("Subnet", "PN/IE_1");
+                    Console.WriteLine("CPU PROFINET接口配置成功");
+                    try
+                    {
+                        var plcIface = networkProvider.Nodes.FirstOrDefault();
+                        plcIface.ConnectToSubnet(subnet);
+                        Console.WriteLine("CPU 加入网络成功");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"CPU 加入网络失败: {ex.Message}");
+                    }
+                }
+
+                // if (device.DeviceItems[0].GetService<NetworkInterface>() != null)
+                // {
+                //     var plcIface = device.DeviceItems[0].GetService<NetworkInterface>().Nodes.First();
+                // } else {
+                //     foreach (var item in cpu.DeviceItems)
+                //     {
+                //         Console.WriteLine("item.Name: " + item.Name);
+                //         Console.WriteLine("item.Classification: " + item.Classification);
+                //     }
+                //     Console.WriteLine("CPU 没有网络设备项");
+                    
+                //     // Node node = networkInterface.Nodes.FirstOrDefault();
+                //     // node.ConnectToSubnet(subnet);
+                // }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"配置PROFINET接口失败: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                throw;
+            }
+        }
+
+        private void ConfigureServoInterface(DeviceItem deviceItem, int number)
+        {
+            try
+            {
+                var networkInterface = deviceItem.DeviceItems
+                    .FirstOrDefault(di => di.Name.Contains("PROFINET interface"));
+
+                if (networkInterface == null)
+                {
+                    throw new Exception("找不到PROFINET接口");
+                }
+
+                var networkProvider = networkInterface.GetService<NetworkInterface>();
+                if (networkProvider != null)
+                {
+                    var node = networkProvider.Nodes[0];
+                    node.SetAttribute("Address", $"192.168.0.{10 + number}");
+                    node.SetAttribute("SubnetMask", "255.255.255.0");
+                }
+
+                Console.WriteLine($"驱动器 {deviceItem.Name} PROFINET接口配置成功");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"配置PROFINET接口失败: {ex.Message}");
+            }
+        }
+
+        public void ConnectServoToAxis(string plcName, string servoName, string axisName)
+        {
+            try
+            {
+                Console.WriteLine($"开始连接伺服 {servoName} 到轴 {axisName}...");
+
+                // 1. 找到PLC设备
+                var plc = _project.Devices.Find(plcName);
+                if (plc == null)
+                {
+                    throw new Exception($"找不到PLC设备: {plcName}");
+                }
+
+                // 2. 找到伺服设备
+                var servoDevice = plc.DeviceItems.FirstOrDefault(di => di.Name == servoName);
+                if (servoDevice == null)
+                {
+                    throw new Exception($"找不到伺服设备: {servoName}");
+                }
+
+                // 3. 找到伺服的驱动接口（通常是第一个设备项）
+                var driveInterface = servoDevice.DeviceItems.FirstOrDefault();
+                if (driveInterface == null)
+                {
+                    throw new Exception($"找不到伺服接口: {servoName}");
+                }
+
+                // 4. 获取网络接口
+                var networkInterface = driveInterface.GetService<NetworkInterface>();
+                if (networkInterface == null)
+                {
+                    throw new Exception("无法获取网络接口");
+                }
+
+                // 5. 配置网络连接
+                var node = networkInterface.Nodes.FirstOrDefault();
+                if (node == null)
+                {
+                    throw new Exception("未找到网络节点");
+                }
+
+                // 6. 设置PROFINET地址和其他属性
+                try
+                {
+                    // 设置PROFINET地址
+                    node.SetAttribute("Address", "102");  // 设置驱动器地址
+                    node.SetAttribute("SubnetMask", "255.255.255.0");
+                    
+                    // 设置设备名称
+                    node.SetAttribute("Name", servoName);
+                    
+                    // 设置PROFINET设备编号
+                    node.SetAttribute("DeviceNumber", "1");
+                    
+                    Console.WriteLine("网络配置已完成");
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"设置网络属性失败: {ex.Message}");
+                }
+
+                Console.WriteLine($"伺服 {servoName} 已成功配置并连接！");
+                Console.WriteLine("请在TIA Portal中检查连接是否正确建立，并根据需要调整IO地址和其他参数。");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"连接伺服到轴失败: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"内部错误: {ex.InnerException.Message}");
+                }
+                throw;
+            }
+        }
+    }
+} 

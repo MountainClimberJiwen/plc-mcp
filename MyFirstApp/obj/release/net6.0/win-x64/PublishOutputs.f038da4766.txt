@@ -1,0 +1,2 @@
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net6.0\win-x64\publish\MyFirstApp.pdb
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net6.0\win-x64\publish\MyFirstApp.exe

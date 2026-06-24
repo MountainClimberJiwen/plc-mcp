@@ -1,0 +1,23 @@
+ORGANIZATION_BLOCK OB100
+VERSION : 0.1
+
+VAR_TEMP
+    // 临时变量
+    tempStatus : BOOL;
+    tempValue : INT;
+END_VAR
+
+BEGIN
+    // 启动程序
+    // 调用功能块
+    "Block_2"();
+    
+    // 调用功能
+    tempValue := "Calculate_Value_2"(input := 10);
+    
+    // 访问全局数据块
+    IF "GlobalData_2".bSystemEnabled THEN
+        "GlobalData_2".iProcessValue := tempValue;
+        "GlobalData_2".sSystemStatus := 'Running';
+    END_IF;
+END_ORGANIZATION_BLOCK 

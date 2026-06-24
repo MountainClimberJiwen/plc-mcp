@@ -1,0 +1,37 @@
+﻿ORGANIZATION_BLOCK "Main"
+TITLE = "Main Program Sweep (Cycle)"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	VAR_INPUT
+	Input1:
+	Bool;    // 输入布尔值
+	Input2:
+	Int;     // 输入整数值
+	END_VAR
+	
+	VAR_OUTPUT
+	Output1:
+	Bool;   // 输出布尔值
+	Output2:
+	Int;    // 输出整数值
+	END_VAR
+	
+	VAR
+	TempVar:
+	Real;   // 临时变量
+	END_VAR
+	
+	BEGIN
+	// 简单的示例逻辑
+	IF Input1 THEN
+	    Output1 := TRUE;
+	    Output2 := Input2 * 2;
+	ELSE
+	    Output1 := FALSE;
+	    Output2 := Input2;
+	END_IF;
+	END_PROGRAM
+END_ORGANIZATION_BLOCK
+

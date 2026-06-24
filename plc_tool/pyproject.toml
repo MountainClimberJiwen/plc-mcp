@@ -1,0 +1,21 @@
+[project]
+name = "plc-tool"
+version = "0.6.2"
+description = "A plc MCP server"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "pythonnet>=3.0.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = ["pyright>=1.1.389"]
+
+
+[project.scripts]
+plc-tool = "plc_tool:main"

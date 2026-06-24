@@ -1,0 +1,2 @@
+Start-Process -FilePath "npx" -ArgumentList "-y", "supergateway", "--stdio", ".\mcp_server\bin\Release\net48\mcp_server.exe", "--port", "8000", "--baseUrl", "http://localhost:8000", "--ssePath", "/sse" -WindowStyle Hidden -WorkingDirectory "E:\pycharm-projects\tia-openness"
+cd E://pycharm-projects/tia-openness/web/bin/Release/net48 && Start-Process -FilePath "web.exe" -WindowStyle Hidden

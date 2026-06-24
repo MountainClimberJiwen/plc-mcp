@@ -1,0 +1,28 @@
+DATA_BLOCK GlobalData_1
+VERSION : 0.1
+NON_RETAIN
+
+VAR
+    // 系统状态变量
+    bSystemEnabled : BOOL := FALSE;    // 系统启用标志
+    sSystemStatus : STRING := 'Stopped';    // 系统状态描述
+    
+    // 过程变量
+    iProcessValue : INT := 0;    // 处理值
+    rSetpoint : REAL := 50.0;    // 设定值
+    
+    // 报警变量
+    bAlarmActive : BOOL := FALSE;    // 报警激活
+    iAlarmCode : INT := 0;    // 报警代码
+    sAlarmMessage : STRING := '';    // 报警信息
+    
+    // 统计数据
+    iCycleCount : DINT := 0;    // 循环计数
+    rRunningTime : REAL := 0.0;    // 运行时间（小时）
+END_VAR
+
+BEGIN
+    // 数据块初始化代码
+    bSystemEnabled := FALSE;
+    sSystemStatus := 'Initialized';
+END_DATA_BLOCK 

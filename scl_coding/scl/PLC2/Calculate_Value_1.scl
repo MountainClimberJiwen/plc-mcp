@@ -1,0 +1,25 @@
+FUNCTION Calculate_Value_2 : INT
+VERSION : 0.1
+
+VAR_INPUT
+    input : INT;    // 输入值
+END_VAR
+
+VAR_TEMP
+    tempResult : INT;    // 临时计算结果
+END_VAR
+
+BEGIN
+    // 简单的计算逻辑
+    tempResult := input * 2;
+    
+    // 添加一些条件逻辑
+    IF input > 100 THEN
+        tempResult := tempResult + 50;
+    ELSIF input < 0 THEN
+        tempResult := 0;
+    END_IF;
+    
+    // 返回结果
+    Calculate_Value_2 := tempResult;
+END_FUNCTION 

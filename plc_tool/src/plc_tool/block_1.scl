@@ -1,0 +1,34 @@
+FUNCTION_BLOCK FB_Example
+VAR_INPUT
+    bStart : BOOL;    // start button 1
+    bStop : BOOL;     // stop button2
+END_VAR
+
+VAR_OUTPUT
+    bRunning : BOOL;  // running status
+    iCounter : INT;   // counter 3
+END_VAR
+
+VAR
+    bLastStart : BOOL;  // last start status
+    bLastStop : BOOL;   // last stop status
+END_VAR
+
+// main program logic
+IF bStart AND NOT bLastStart THEN
+    bRunning := TRUE;
+END_IF
+
+IF bStop AND NOT bLastStop THEN
+    bRunning := FALSE;
+END_IF
+
+IF bRunning THEN
+    iCounter := iCounter + 1;
+END_IF
+
+// update status
+bLastStart := bStart;
+bLastStop := bStop;
+
+END_FUNCTION_BLOCK 

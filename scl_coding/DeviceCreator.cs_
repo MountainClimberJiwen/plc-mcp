@@ -1,0 +1,81 @@
+using System;
+using System.Linq;
+using Siemens.Engineering;
+using Siemens.Engineering.HW;
+using Siemens.Engineering.HW.Features;
+
+namespace MyFirstApp
+{
+    public class DeviceCreator
+    {
+        private readonly TiaPortal _tiaPortal;
+        private readonly Project _project;
+
+        public DeviceCreator(TiaPortal tiaPortal, Project project)
+        {
+            _tiaPortal = tiaPortal ?? throw new ArgumentNullException(nameof(tiaPortal));
+            _project = project ?? throw new ArgumentNullException(nameof(project));
+        }
+
+        public Device CreateIODevice(string mlfb, string name)
+        {
+            try
+            {
+                Console.WriteLine($"开始创建设备: {name}");
+                Console.WriteLine($"使用MLFB: {mlfb}");
+
+                // 检查设备是否已存在
+                var existingDevice = _project.Devices.Find(name);
+                if (existingDevice != null)
+                {
+                    Console.WriteLine($"设备 '{name}' 已存在，跳过创建。");
+                    return existingDevice;
+                }
+
+                // 创建新设备
+                var device = _project.Devices.CreateWithItem(mlfb, name, name);
+                Console.WriteLine($"成功创建设备: {name}");
+
+                return device;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"创建设备失败: {ex.Message}");
+                Console.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+                throw;
+            }
+        }
+
+        public bool AddIOCard(Device device, string cardMlfb, string cardName, int slotNumber)
+        {
+            try
+            {
+                if (device == null)
+                {
+                    throw new ArgumentNullException(nameof(device));
+                }
+
+                var deviceItem = device.DeviceItems[0];
+                
+                // 检查是否可以插入新卡
+                if (deviceItem.CanPlugNew(cardMlfb, cardName, slotNumber))
+                {
+                    deviceItem.PlugNew(cardMlfb, cardName, slotNumber);
+                    Console.WriteLine($"成功在槽位 {slotNumber} 添加IO卡 {cardName}");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"无法在槽位 {slotNumber} 添加IO卡 {cardName}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"添加IO卡失败: {ex.Message}");
+                Console.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+                return false;
+            }
+        }
+    }
+} 

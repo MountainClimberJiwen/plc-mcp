@@ -1,0 +1,7 @@
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.csproj.AssemblyReference.cache
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.GeneratedMSBuildEditorConfig.editorconfig
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.AssemblyInfoInputs.cache
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.AssemblyInfo.cs
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.csproj.CoreCompileInputs.cache
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.MvcApplicationPartsAssemblyInfo.cache
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\obj\Debug\net7.0\MyFirstApp.sourcelink.json

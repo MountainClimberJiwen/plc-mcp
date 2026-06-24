@@ -1,0 +1,18 @@
+FUNCTION Calculate_Value : INT
+VERSION : 0.1
+
+VAR_INPUT
+    input : INT;    // 输入值
+END_VAR
+
+VAR_TEMP
+    tempResult : INT;    // 临时计算结果
+END_VAR
+
+BEGIN
+    // 简单的计算：将输入值乘以2
+    tempResult := input * 2;
+    
+    // 返回结果
+    Calculate_Value := tempResult;
+END_FUNCTION 

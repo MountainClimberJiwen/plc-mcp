@@ -1,0 +1,337 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using Siemens.Engineering;
+using McpServer.Config;
+using Siemens.Engineering.HW;
+using Siemens.Engineering.HW.Features;
+using Siemens.Engineering.HW.Utilities;
+using Siemens.Engineering.SW;
+using System.IO;
+using Siemens.Engineering.SW.Types;
+using Siemens.Engineering.SW.Tags;
+using Siemens.Engineering.SW.Blocks;
+using Siemens.Engineering.Compiler;
+
+namespace McpServer
+{
+    class ServoTest
+    {
+        void Main2(string[] args)
+        {
+            try
+            {
+                Console.WriteLine("开始创建CPU和伺服设备...");
+                
+                // 加载配置
+                var config = AppConfig.Load();
+                if (config == null)
+                {
+                    Console.WriteLine("配置加载失败：配置文件不存在或格式错误");
+                    return;
+                }
+
+                // 连接到TIA Portal
+                Console.WriteLine("\n连接到TIA Portal...");
+                TiaPortal tiaPortal = null;
+                var processes = TiaPortal.GetProcesses();
+                if (processes.Count > 0)
+                {
+                    Console.WriteLine("发现正在运行的TIA Portal实例，尝试连接...");
+                    tiaPortal = processes[0].Attach();
+                    
+                    // 关闭所有已打开的项目
+                    if (tiaPortal.Projects.Count > 0)
+                    {
+                        Console.WriteLine("关闭已打开的项目...");
+                        // 创建项目列表的副本
+                        var projectsToClose = tiaPortal.Projects.ToList();
+                        
+                        // 关闭项目
+                        foreach (var openProject in projectsToClose)
+                        {
+                            try
+                            {
+                                Console.WriteLine($"正在关闭项目: {openProject.Path}");
+                                openProject.Close();
+                                Console.WriteLine($"已关闭项目: {openProject.Path}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"关闭项目时出错: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("未发现运行中的TIA Portal实例，启动新实例...");
+                    tiaPortal = new TiaPortal(TiaPortalMode.WithUserInterface);
+                }
+
+                // 获取或创建项目
+                Console.WriteLine("\n打开项目...");
+                var project = tiaPortal.Projects.Open(new System.IO.FileInfo(config.ProjectPath));
+                Console.WriteLine($"成功打开项目: {project.Path}");
+
+               
+                Console.WriteLine("=== All Devices in Project ===");
+
+                // 显示未分组设备
+                Console.WriteLine("\n[UNGROUPED DEVICES]");
+                //Project project = ...
+                DeviceSystemGroup group = project.UngroupedDevicesGroup;
+                foreach (Device device in group.Devices)
+                {
+                    PrintDeviceInfo(device);
+                }
+
+                // 显示设备组中的设备
+                var deviceGroups = project.DeviceGroups;
+                if (deviceGroups != null && deviceGroups.Any())
+                {
+                    Console.WriteLine("\n[DEVICE GROUPS]");
+                    foreach (var deviceGroup in deviceGroups)
+                    {
+                        Console.WriteLine($"\n[DEVICE GROUP] Name: {deviceGroup.Name}");
+                        
+                        foreach (Device device in deviceGroup.Devices)
+                        {
+                            PrintDeviceInfo(device);
+                        }
+                    }
+                }
+
+                Console.WriteLine("\n=== DONE ===");
+
+                // 创建设备管理器
+                var deviceCreator = new ServoDeviceCreator(tiaPortal, project);
+
+                // 创建CPU 1513
+                var cpu = deviceCreator.CreateCPU1513();
+                if (cpu != null)
+                {
+                    Console.WriteLine("CPU创建成功！");
+
+                    // 创建3个V90伺服
+                    // for (int i = 1; i <= 3; i++)
+                    // {
+                    //     var servo = deviceCreator.CreateV90Driver("PLC_1", $"V90_Servo_{i}", i);
+                    //     if (servo != null)
+                    //     {
+                    //         Console.WriteLine($"伺服 {i} 创建成功！");
+                    //     }
+                    // }
+
+
+                // // 创建 PLC
+                // var plc = project.Devices.CreateWithItem("6ES7 513-1AL02-0AB0", "V2.6", "PLC_1");
+
+                // 创建 3 个 V90 驱动器
+                string ioArticle = "GSD:GSDML-V2.32-SIEMENS-SINAMICS_V90-20190415.XML/DAP/IDD_V90PN-V4.7"; // IO Device 料号
+                var v90_1 = project.Devices.Find("V90_1");
+                if (v90_1 == null)
+                {
+                    v90_1 = project.Devices.CreateWithItem(ioArticle, "V90_1", "V90_1");
+                }
+                deviceCreator.showDeivce(v90_1);
+                // deviceCreator.configPnDriver(v90_1);
+
+                var v90_2 = project.Devices.Find("V90_2");
+                if (v90_2 == null)
+                {
+                    v90_2 = project.Devices.CreateWithItem(ioArticle, "V90_2", "V90_2");
+                }
+                deviceCreator.showDeivce(v90_2);
+                var v90_3 = project.Devices.Find("V90_3");
+                if (v90_3 == null)
+                {
+                    v90_3 = project.Devices.CreateWithItem(ioArticle, "V90_3", "V90_3");
+                }
+                deviceCreator.showDeivce(v90_3);
+                // var v90_2 = project.Devices.CreateWithItem(ioArticle, "V90_2", "V90_2");
+                // var v90_3 = project.Devices.CreateWithItem(ioArticle, "V90_3", "V90_3");
+
+                // 创建 PROFINET 网络
+                SubnetComposition subnets = project.Subnets;
+                // Subnet newSubnet = subnets.Create("System:Subnet.Ethernet", "NewSubnet");
+                // var subnet = project.Networks.CreateProfinetSubnet("PN-Subnet");
+                // Subnet subnet = subnets.Create("System:Subnet.ProfidriveIntegrated",
+                // "PROFIdrive Integrated_1");
+                var subnet = subnets.Find("PROFIdrive Integrated_1");
+                
+                // Subnet net = ...;
+                // string name = net.Name;
+                // NetType type = net.NetType;
+                if (subnet == null)
+                {
+                    subnet = subnets.Create("System:Subnet.ProfidriveIntegrated", "PROFIdrive Integrated_1");
+                    Console.WriteLine("创建 PROFIdrive Integrated_1 网络");
+                }
+                Console.WriteLine(subnet.Name); 
+                Console.WriteLine(subnet.NetType);
+                // TypeIdentifier
+                Console.WriteLine(subnet.TypeIdentifier);
+                Console.WriteLine(subnet.Nodes.Count);
+
+                // 配置PROFINET接口
+                deviceCreator.ConfigureProfinetInterface(cpu, subnet);
+                
+                Console.WriteLine("CPU 1513初始化成功！");
+                // 遍历CPU的设备项
+                // var profinetX150 = cpu.DeviceItems.First(x => x.Classification == DeviceItemClassifications.CPU).DeviceItems[0].GetService<NetworkInterface>().Nodes.First();
+                foreach (var item in cpu.DeviceItems)
+                {
+                    Console.WriteLine("item.Name: " + item.Name);
+                    Console.WriteLine("item.TypeIdentifier: " + item.TypeIdentifier);
+                    var interfaces = item.GetService<NetworkInterface>();
+                    Console.WriteLine("interfaces: " + interfaces);
+                    // foreach (var netIf in interfaces)
+                    // {
+                    //     Console.WriteLine($"Interface: {netIf.Name}, Type: {netIf.InterfaceType}");
+                    // }
+                }
+                
+                
+                
+                // deviceCreator.showDeivce(v90_1);
+                // deviceCreator.configPnDriver(v90_1, "192.168.0.15");
+                deviceCreator.showDeivce(v90_2);
+                deviceCreator.configPnDriver(v90_2, "192.168.0.16");
+                deviceCreator.showDeivce(v90_3);
+                deviceCreator.configPnDriver(v90_3, "192.168.0.17");
+                
+              
+                }
+
+                // 保存项目
+                Console.WriteLine("\n保存项目...");
+                project.Save();
+                Console.WriteLine("项目保存成功！");
+
+                Console.WriteLine("\n设备创建完成！");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n创建过程中发生错误：");
+                Console.WriteLine($"错误信息: {ex.Message}");
+                Console.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+            }
+
+            Console.WriteLine("\n按任意键退出...");
+            Console.ReadKey();
+        }
+
+        private static void PrintDeviceInfo(Device device)
+        {
+            Console.WriteLine($"\n[DEVICE] Name: {device.Name}");
+            Console.WriteLine($"  TypeIdentifier: {device.TypeIdentifier}");
+
+            foreach (DeviceItem deviceItem in device.DeviceItems)
+            {
+                Console.WriteLine($"  └─ DeviceItem: {deviceItem.Name} | Type: {deviceItem.TypeIdentifier}");
+
+                // Network Interface Info
+                try
+                {
+                    var netIface = deviceItem.GetService<NetworkInterface>();
+                    if (netIface != null)
+                    {
+                        foreach (var node in netIface.Nodes)
+                        {
+                            Console.WriteLine($"      ↳ NetworkNode: {node.Name}");
+                            // Access network properties through attributes
+                            Console.WriteLine($"         - Interface MAC: {node.GetAttribute("MacAddress")}");
+                            Console.WriteLine($"         - IP Address: {node.GetAttribute("Address")}");
+                            var subnet = node.ConnectedSubnet;
+                            Console.WriteLine($"         - Subnet: {subnet?.Name ?? "(not connected)"}");
+                        }
+                    }
+                }
+                catch (Exception) { /* Service not available */ }
+
+                // IO Device Info
+                try
+                {
+                    if (deviceItem.IsDevice())
+                    {
+                        Console.WriteLine($"      ↳ IODevice Role Detected:");
+                        Console.WriteLine($"         - DeviceAccessPoint: {deviceItem.Name}");
+                        Console.WriteLine($"         - Module Count: {deviceItem.DeviceItems.Count}");
+                    }
+                }
+                catch (Exception) { /* Service not available */ }
+
+                // IO Controller Info
+                try
+                {
+                    var networkInterface = deviceItem.GetService<NetworkInterface>();
+                    if (networkInterface != null && networkInterface.IoControllers.Count > 0)
+                    {
+                        Console.WriteLine($"      ↳ IOController Role Detected:");
+                        foreach (var controller in networkInterface.IoControllers)
+                        {
+                            var nodes = networkInterface.Nodes
+                                .Where(n => n.ConnectedSubnet != null)
+                                .ToList();
+
+                            foreach (var node in nodes)
+                            {
+                                var parentDevice = node.Parent as DeviceItem;
+                                Console.WriteLine($"         - Connected to Device: {parentDevice?.Name ?? "(unknown)"}");
+                                Console.WriteLine($"         - DeviceAccessPoint: {node.Name}");
+                                Console.WriteLine($"         - Connection State: {node.ConnectedSubnet.Name}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception) { /* Service not available */ }
+            }
+        }
+    }
+
+    public static class DeviceItemExtensions
+    {
+        public static bool IsDevice(this DeviceItem deviceItem)
+        {
+            return deviceItem != null && 
+                   deviceItem.GetType().GetProperty("Classification")?.GetValue(deviceItem)?.ToString() == "Device";
+        }
+    }
+} 
+
+
+
+
+// public void Connect_ModuleInOut()
+// {
+// var deviceItem = GsdmlDevice.DeviceItems.First(x => x.Name == "SIEMENS telegram 105,
+// PZD-10/10");
+// var syncAxis =
+// plcSoftware.TechnologicalObjectGroup.TechnologicalObjects.Find("SynchronousAxis_1");
+// syncAxis
+// .GetService<AxisHardwareConnectionProvider>()
+// .ActorInterface
+// .Connect(deviceItem);
+// // }
+// MotorConfiguration
+// Class MotorConfiguration is responsible for commissioning motors and encoders.
+// Namespace: Siemens.Engineering.MC.Drives
+// Siemens.Engineering.MC.Drives.DFI
+// Siemens.Engineering.MC.Drives.Enums
+// Assembly: Siemens.Engineering.MC.Drives in Siemens.Engineering.dll
+// Response for Siemens motors:
+// Action SetMotortype must be called to set the motor type. This action comprises the Enum
+// MotorType and a number, which represents the DriveDatasetNumber.
+// The action SetMotortype is not available for S120 drives. For these drives, the motor type
+// is set using the hardware catalog by applying the PlugNew() method.
+
+  // var iface1 = v90_1.DeviceItems[0].GetService<NetworkInterface>().Nodes.First();
+                // var iface2 = v90_2.DeviceItems[0].GetService<NetworkInterface>().Nodes.First();
+                // var iface3 = v90_3.DeviceItems[0].GetService<NetworkInterface>().Nodes.First();
+
+                // subnet.Nodes.Add(plcIface);
+                // subnet.Nodes.Add(iface1);
+                // subnet.Nodes.Add(iface2);
+                // subnet.Nodes.Add(iface3);
+

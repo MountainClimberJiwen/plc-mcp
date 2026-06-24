@@ -1,0 +1,14 @@
+# TIA Portal 安装路径
+TiaPortalPath=E:\Program Files\Siemens\Automation\Portal V19
+
+# Project path to .ap Files
+ProjectPath=E:\tia\test\test.ap19
+
+# scl code root dir 
+SclCodeRootDir=E:\pycharm-projects\tia-openness
+
+# Siemens.Engineering.dll 路径
+EngineeringDllPath=E:\Program Files\Siemens\Automation\Portal V19\Bin\PublicAPI\Siemens.Engineering.dll
+
+# zhaojie Siemens.Engineering.dll 路径
+# EngineeringDllPath=C:\Program Files\Siemens\Automation\Portal V19\PublicAPI\V19\Siemens.Engineering.dll

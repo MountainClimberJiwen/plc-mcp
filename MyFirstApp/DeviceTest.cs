@@ -1,0 +1,78 @@
+using System;
+using System.Linq;
+using Siemens.Engineering;
+using MyFirstApp.Config;
+using Siemens.Engineering.HW;
+using Siemens.Engineering.HW.Features;
+using Siemens.Engineering.Library.Types;
+
+namespace MyFirstApp
+{
+    class DeviceTest
+    {
+        static void Main3(string[] args)
+        {
+            try
+            {
+                Console.WriteLine("开始测试设备创建...");
+                
+                // 加载配置
+                var config = AppConfig.Load();
+                if (config == null)
+                {
+                    Console.WriteLine("配置加载失败：配置文件不存在或格式错误");
+                    return;
+                }
+
+                // 连接到TIA Portal
+                Console.WriteLine("\n连接到TIA Portal...");
+                TiaPortal tiaPortal = null;
+                var processes = TiaPortal.GetProcesses();
+                if (processes.Count > 0)
+                {
+                    Console.WriteLine("发现正在运行的TIA Portal实例，尝试连接...");
+                    tiaPortal = processes[0].Attach();
+                }
+                else
+                {
+                    Console.WriteLine("未发现运行中的TIA Portal实例，启动新实例...");
+                    tiaPortal = new TiaPortal(TiaPortalMode.WithUserInterface);
+                }
+
+                // 获取或创建项目
+                var project = tiaPortal.Projects.Open(new System.IO.FileInfo(config.ProjectPath));
+                Console.WriteLine($"成功打开项目: {project.Path}");
+
+                // 导出项目
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string exportPath = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(config.ProjectPath),
+                    $"ProjectExport_{timestamp}"
+                );
+                System.IO.Directory.CreateDirectory(exportPath);
+                
+                Console.WriteLine($"开始导出项目配置到: {exportPath}");
+                try
+                {
+                    project.Archive(new System.IO.DirectoryInfo(exportPath), "ProjectBackup", ProjectArchivationMode.Compressed);
+                    Console.WriteLine("项目配置导出完成！");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"项目导出失败: {ex.Message}");
+                }
+
+                Console.WriteLine("\n设备创建测试完成！");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n测试过程中发生错误：");
+                Console.WriteLine($"错误信息: {ex.Message}");
+                Console.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+            }
+
+            Console.WriteLine("\n按任意键退出...");
+            Console.ReadKey();
+        }
+    }
+} 

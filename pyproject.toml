@@ -1,0 +1,17 @@
+[project]
+name = "tia-openness"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.6.0",
+    "pythonnet>=3.0.5",
+]
+
+
+[project.scripts]
+plc_tool = "plc_tool:main"
+
+[tool.uv.workspace]
+members = ["simple_tool"]

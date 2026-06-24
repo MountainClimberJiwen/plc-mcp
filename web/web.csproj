@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
+    <PackageReference Include="ModelContextProtocol" Version="0.2.0-preview.2" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="7.0.0" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+
+    <Reference Include="Siemens.Engineering">
+      <HintPath>.\Siemens.Engineering.dll</HintPath>
+    </Reference>
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
+  </ItemGroup>
+
+  <!-- 发布时拷贝Siemens.Engineering.dll -->
+  <Target Name="CopySiemensDll" AfterTargets="Publish">
+    <PropertyGroup>
+      <SiemensDllPath>E:\Program Files\Siemens\Automation\Portal V19\Bin\PublicAPI\Siemens.Engineering.dll</SiemensDllPath>
+    </PropertyGroup>
+    
+    <Copy 
+      SourceFiles="$(SiemensDllPath)" 
+      DestinationFolder="$(PublishDir)" 
+      Condition="Exists('$(SiemensDllPath)')" />
+    
+    <Message Text="已拷贝 Siemens.Engineering.dll 到发布目录: $(PublishDir)" Condition="Exists('$(SiemensDllPath)')" />
+    <Warning Text="未找到 Siemens.Engineering.dll，请手动拷贝到发布目录" Condition="!Exists('$(SiemensDllPath)')" />
+  </Target>
+
+</Project>

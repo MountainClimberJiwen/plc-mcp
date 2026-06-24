@@ -1,0 +1,5 @@
+# TIA Portal 安装路径 
+TiaPortalPath=C:\Program Files\Siemens\Automation\Portal V19 
+ 
+# Siemens.Engineering.dll 路径 
+EngineeringDllPath=C:\Program Files\Siemens\Automation\Portal V19\Bin\PublicAPI\Siemens.Engineering.dll 

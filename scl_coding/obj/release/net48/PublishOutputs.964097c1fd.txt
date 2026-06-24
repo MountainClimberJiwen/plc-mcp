@@ -1,0 +1,16 @@
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\MyFirstApp.exe
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\MyFirstApp.exe.config
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\MyFirstApp.pdb
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\Microsoft.Bcl.AsyncInterfaces.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Buffers.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Memory.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Numerics.Vectors.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Runtime.CompilerServices.Unsafe.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Text.Encodings.Web.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Text.Json.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.Threading.Tasks.Extensions.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\System.ValueTuple.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\Siemens.Engineering.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\Siemens.Engineering.Contract.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\Siemens.Engineering.Hmi.dll
+E:\pycharm-projects\tia-openness\c-sharp\MyFirstApp\bin\release\net48\publish\Siemens.Engineering.ClientAdapter.Interfaces.dll

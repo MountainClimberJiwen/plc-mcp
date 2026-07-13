@@ -13,6 +13,7 @@ AI 可以直接用 cat、diff、grep 操作程序块，无需学习各品牌的�
 Video / 视频介绍
 ----------------
 📺 [PLC MCP 视频介绍](https://b23.tv/I8PbJNM) — 哔哩哔哩
+▶️ [PLC MCP Video Introduction](https://youtu.be/YjfSoXI5Q8A?si=78_cjYHoa2MGvXTF) — YouTube
 
 Quick Start
 -----------
@@ -85,7 +86,6 @@ Installation
 # 1. Clone
 https://github.com/MountainClimberJiwen/plc-mcp.git
 cd plc-mcp
-
 # 2. Install (Python >= 3.10)
 pip install -e ".[siemens]"
 

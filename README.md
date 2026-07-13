@@ -85,8 +85,10 @@ cd plc-mcp
 # 2. Install (Python >= 3.10)
 pip install -e ".[siemens]"
 
-# 3. Windows: 配置 TIA Openness
+# 3. Windows: 配置 TIA Openness（需要以管理员身份运行 PowerShell）
 powershell scripts/setup_tia_openness.ps1
+# 如果 TIA Portal 不是 V19，可指定版本
+# powershell scripts/setup_tia_openness.ps1 -TiaVersion "V18"
 ```
 
 Usage

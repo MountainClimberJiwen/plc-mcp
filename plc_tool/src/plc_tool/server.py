@@ -11,6 +11,25 @@ from pydantic import AnyUrl
 from typing import Any
 from .demo_1 import TiaProject
 
+
+def _add_tia_dll_reference():
+    """Load Siemens.Engineering.dll from TIA_OPENNESS_DLL_PATH or common install paths."""
+    import clr
+    dll_path = os.environ.get('TIA_OPENNESS_DLL_PATH')
+    if dll_path and os.path.exists(dll_path):
+        clr.AddReference(dll_path)
+        return
+    # Fallback to common TIA Portal V19 paths
+    for candidate in (
+        r'E:\Program Files\Siemens\Automation\Portal V19\Bin\PublicAPI\Siemens.Engineering.dll',
+        r'C:\Program Files\Siemens\Automation\Portal V19\Bin\PublicAPI\Siemens.Engineering.dll',
+    ):
+        if os.path.exists(candidate):
+            clr.AddReference(candidate)
+            return
+    logging.warning('Siemens.Engineering.dll not found; TIA Openness calls may fail')
+
+
 # from demo_1 import TiaProject
 # from demo import init_project, init_plc, update_plc_block
 # reconfigure UnicodeEncodeError prone default (i.e. windows-1252) to utf-8
@@ -31,13 +50,29 @@ logger.info("Starting PLC MCP Server")
 # </mcp>
 # """
 
-async def main(project_path: str, project_name: str):
+async def main(project_path: str, project_name: str, use_vfs: bool = False):
     logger.info(f"Starting PLC MCP Server with project path: {project_path} and project name: {project_name}")
 
     server = Server("plc-mcp-server")
     tia_project = TiaProject(project_path, project_name)
     PROJECT_PATH = project_path
     PROJECT_NAME = project_name
+
+    # Optional Virtual Filesystem integration layer
+    vfs = None
+    if use_vfs:
+        sys.path.insert(
+            0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        )
+        _add_tia_dll_reference()
+        from plc_vfs import PLCVirtualFS
+        from plc_vfs.adapters.siemens import SiemensTIAAdapter
+        adapter = SiemensTIAAdapter(project_path)
+        vfs = PLCVirtualFS(adapter)
+        logger.info("VFS integration enabled")
+    else:
+        logger.info("VFS integration disabled")
+
     print("init tia project")
     # tia_project.open_project()
     # Register handlers
@@ -115,7 +150,7 @@ async def main(project_path: str, project_name: str):
     @server.list_tools()
     async def handle_list_tools() -> list[types.Tool]:
         """List available tools"""
-        return [
+        tools = [
         # open project
         types.Tool(
             name="open-project",
@@ -168,18 +203,79 @@ async def main(project_path: str, project_name: str):
         )
         ]
 
+        if vfs:
+            tools.extend([
+                types.Tool(
+                    name="vfs-ls",
+                    description="List PLC blocks or directories via the virtual filesystem",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string", "default": "/devices/PLC_1/blocks"},
+                        },
+                    },
+                ),
+                types.Tool(
+                    name="vfs-cat",
+                    description="Read a PLC block source via the virtual filesystem",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                        },
+                        "required": ["path"],
+                    },
+                ),
+                types.Tool(
+                    name="vfs-write",
+                    description="Write source code to a PLC block via the virtual filesystem",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "content": {"type": "string"},
+                        },
+                        "required": ["path", "content"],
+                    },
+                ),
+                types.Tool(
+                    name="vfs-diff",
+                    description="Diff two PLC blocks via the virtual filesystem",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "path_a": {"type": "string"},
+                            "path_b": {"type": "string"},
+                        },
+                        "required": ["path_a", "path_b"],
+                    },
+                ),
+            ])
+
+        return tools
+
     @server.call_tool()
     async def handle_call_tool(
         name: str, arguments: dict[str, Any] | None
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
         """Handle tool execution requests"""
+        arguments = arguments or {}
         try:
             if name == "open-project":
                 project_path = PROJECT_PATH
                 project_name = PROJECT_NAME
                 if not project_path or not project_name:
                     raise ValueError("Missing project_path or project_name")
-                
+
+                if vfs:
+                    vfs.adapter.connect()
+                    return [
+                        types.TextContent(
+                            type="text",
+                            text=f"Connected to project '{project_name}' via VFS",
+                        )
+                    ]
+
                 tia_project = TiaProject(project_path, project_name)
                 tia_project.open_project()
                 return [
@@ -225,6 +321,50 @@ async def main(project_path: str, project_name: str):
                     types.TextContent(
                         type="text",
                         text=f"Updated PLC block with XML path '{xml_path}'",
+                    )
+                ]
+            elif name == "vfs-ls" and vfs:
+                path = arguments.get("path", "/devices/PLC_1/blocks")
+                items = vfs.ls(path)
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"Items under {path}:\n" + "\n".join(items),
+                    )
+                ]
+            elif name == "vfs-cat" and vfs:
+                path = arguments.get("path")
+                if not path:
+                    raise ValueError("Missing path")
+                content = vfs.cat(path)
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"--- {path} ---\n{content}",
+                    )
+                ]
+            elif name == "vfs-write" and vfs:
+                path = arguments.get("path")
+                content = arguments.get("content")
+                if not path or content is None:
+                    raise ValueError("Missing path or content")
+                vfs.echo(content, path)
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"Wrote to {path} via VFS",
+                    )
+                ]
+            elif name == "vfs-diff" and vfs:
+                path_a = arguments.get("path_a")
+                path_b = arguments.get("path_b")
+                if not path_a or not path_b:
+                    raise ValueError("Missing path_a or path_b")
+                diff = vfs.diff(path_a, path_b)
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=diff or "No differences",
                     )
                 ]
         except Exception as e:

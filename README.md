@@ -10,6 +10,10 @@ AI 可以直接用 cat、diff、grep 操作程序块，无需学习各品牌的�
 支持本地映射（开发机直连 IDE）和远程映射（SSH/S3），
 让跨平台、跨品牌的 PLC 开发像操作 Git 仓库一样简单。
 
+Video / 视频介绍
+----------------
+📺 [PLC MCP 视频介绍](https://b23.tv/I8PbJNM) — 哔哩哔哩
+
 Quick Start
 -----------
 ```python

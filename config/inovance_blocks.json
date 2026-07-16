@@ -1,0 +1,184 @@
+{
+  "_comment": "汇川 AM600/AC800 变量地址映射配置文件。每个 '块' 对应一个功能模块的变量集合。",
+  "meta": {
+    "brand": "inovance",
+    "series": "AM600/AC800",
+    "protocol": "Modbus TCP",
+    "plc_address": "192.168.1.10",
+    "unit_id": 1,
+    "created": "2026-07-16",
+    "version": "1.0.0"
+  },
+  "blocks": {
+    "Motor_Control": {
+      "type": "FB",
+      "description": "电机控制功能块",
+      "variables": [
+        {
+          "name": "Start_Button",
+          "type": "BOOL",
+          "section": "VAR_INPUT",
+          "address": "X0",
+          "default": false,
+          "modbus": { "function": 1, "address": 0 }
+        },
+        {
+          "name": "Stop_Button",
+          "type": "BOOL",
+          "section": "VAR_INPUT",
+          "address": "X1",
+          "default": false,
+          "modbus": { "function": 1, "address": 1 }
+        },
+        {
+          "name": "Emergency_Stop",
+          "type": "BOOL",
+          "section": "VAR_INPUT",
+          "address": "X2",
+          "default": false,
+          "modbus": { "function": 1, "address": 2 }
+        },
+        {
+          "name": "Motor_On",
+          "type": "BOOL",
+          "section": "VAR_OUTPUT",
+          "address": "Y0",
+          "default": false,
+          "modbus": { "function": 1, "address": 10 }
+        },
+        {
+          "name": "Motor_Fault",
+          "type": "BOOL",
+          "section": "VAR_OUTPUT",
+          "address": "Y1",
+          "default": false,
+          "modbus": { "function": 1, "address": 11 }
+        },
+        {
+          "name": "Set_Speed",
+          "type": "INT",
+          "section": "VAR_INPUT",
+          "address": "D0",
+          "default": 0,
+          "modbus": { "function": 3, "address": 0 }
+        },
+        {
+          "name": "Actual_Speed",
+          "type": "INT",
+          "section": "VAR_OUTPUT",
+          "address": "D1",
+          "default": 0,
+          "modbus": { "function": 3, "address": 1 }
+        },
+        {
+          "name": "Motor_Current",
+          "type": "REAL",
+          "section": "VAR_OUTPUT",
+          "address": "D2",
+          "default": 0.0,
+          "modbus": { "function": 3, "address": 2 }
+        }
+      ]
+    },
+    "Conveyor_Control": {
+      "type": "FB",
+      "description": "传送带控制功能块",
+      "variables": [
+        {
+          "name": "Conveyor_Start",
+          "type": "BOOL",
+          "section": "VAR_INPUT",
+          "address": "X10",
+          "default": false,
+          "modbus": { "function": 1, "address": 20 }
+        },
+        {
+          "name": "Conveyor_Stop",
+          "type": "BOOL",
+          "section": "VAR_INPUT",
+          "address": "X11",
+          "default": false,
+          "modbus": { "function": 1, "address": 21 }
+        },
+        {
+          "name": "Conveyor_Running",
+          "type": "BOOL",
+          "section": "VAR_OUTPUT",
+          "address": "Y10",
+          "default": false,
+          "modbus": { "function": 1, "address": 30 }
+        },
+        {
+          "name": "Conveyor_Speed",
+          "type": "INT",
+          "section": "VAR_INPUT",
+          "address": "D10",
+          "default": 0,
+          "modbus": { "function": 3, "address": 10 }
+        },
+        {
+          "name": "Product_Count",
+          "type": "DINT",
+          "section": "VAR_OUTPUT",
+          "address": "D11",
+          "default": 0,
+          "modbus": { "function": 3, "address": 11 }
+        },
+        {
+          "name": "Belt_Tension",
+          "type": "REAL",
+          "section": "VAR_OUTPUT",
+          "address": "D13",
+          "default": 0.0,
+          "modbus": { "function": 3, "address": 13 }
+        }
+      ]
+    },
+    "System_Status": {
+      "type": "FB",
+      "description": "系统状态监控",
+      "variables": [
+        {
+          "name": "System_Ready",
+          "type": "BOOL",
+          "section": "VAR_OUTPUT",
+          "address": "Y20",
+          "default": false,
+          "modbus": { "function": 1, "address": 40 }
+        },
+        {
+          "name": "System_Alarm",
+          "type": "BOOL",
+          "section": "VAR_OUTPUT",
+          "address": "Y21",
+          "default": false,
+          "modbus": { "function": 1, "address": 41 }
+        },
+        {
+          "name": "Alarm_Code",
+          "type": "INT",
+          "section": "VAR_OUTPUT",
+          "address": "D20",
+          "default": 0,
+          "modbus": { "function": 3, "address": 20 }
+        },
+        {
+          "name": "Cycle_Time",
+          "type": "REAL",
+          "section": "VAR_OUTPUT",
+          "address": "D21",
+          "default": 0.0,
+          "modbus": { "function": 3, "address": 21 }
+        },
+        {
+          "name": "Device_Name",
+          "type": "STRING",
+          "section": "VAR",
+          "address": "D30",
+          "default": "AM600",
+          "modbus": { "function": 3, "address": 30 }
+        }
+      ]
+    }
+  }
+}

@@ -12,6 +12,10 @@ from typing import Any
 from .demo_1 import TiaProject
 
 
+logger = logging.getLogger('plc-mcp-server')
+logger.info("Starting PLC MCP Server")
+
+
 def _add_tia_dll_reference():
     """Load Siemens.Engineering.dll from TIA_OPENNESS_DLL_PATH or common install paths."""
     import clr
@@ -30,28 +34,96 @@ def _add_tia_dll_reference():
     logging.warning('Siemens.Engineering.dll not found; TIA Openness calls may fail')
 
 
-# from demo_1 import TiaProject
-# from demo import init_project, init_plc, update_plc_block
+def _create_vfs_adapter(brand: str, project_path: str, host: str = None, port: int = 502):
+    """
+    根据品牌创建对应的 VFS 适配器
+
+    Args:
+        brand: 'siemens' | 'inovance' | 'mock'
+        project_path: TIA 项目路径或 Inovance 块映射文件路径
+        host: Inovance PLC 的 IP 地址（仅 inovance 使用）
+        port: Modbus TCP 端口（默认 502）
+    """
+    sys.path.insert(
+        0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    )
+
+    from plc_vfs import PLCVirtualFS
+    from plc_vfs.adapters.inovance import InovanceAM600Adapter, MockInovanceAdapter
+
+    if brand == "siemens":
+        _add_tia_dll_reference()
+        # SiemensTIAAdapter 在 core.py 中定义
+        from plc_vfs.core import SiemensTIAAdapter
+        adapter = SiemensTIAAdapter(project_path)
+        logger.info("VFS: Siemens TIA Adapter initialized")
+
+    elif brand == "inovance":
+        # 优先使用真实 PLC 连接，如果连接失败则使用 Mock
+        block_map = project_path if os.path.exists(project_path) else None
+        if not block_map:
+            # 尝试默认配置路径
+            default_map = os.path.join(
+                os.path.dirname(__file__), '..', '..', '..',
+                'config', 'inovance_blocks.json'
+            )
+            if os.path.exists(default_map):
+                block_map = default_map
+
+        host = host or os.environ.get('INOVANCE_PLC_HOST', '192.168.1.10')
+        try:
+            adapter = InovanceAM600Adapter(
+                host=host,
+                port=port,
+                block_map_path=block_map,
+            )
+            adapter.connect()
+            logger.info(f"VFS: Inovance AM600 Adapter connected to {host}:{port}")
+        except Exception as e:
+            logger.warning(f"Failed to connect to Inovance PLC: {e}")
+            logger.info("Falling back to MockInovanceAdapter")
+            adapter = MockInovanceAdapter(block_map_path=block_map)
+            adapter.connect()
+
+    elif brand == "mock":
+        # 通用 Mock 适配器（用于测试）
+        block_map = project_path if os.path.exists(project_path) else None
+        if not block_map:
+            default_map = os.path.join(
+                os.path.dirname(__file__), '..', '..', '..',
+                'config', 'inovance_blocks.json'
+            )
+            if os.path.exists(default_map):
+                block_map = default_map
+        adapter = MockInovanceAdapter(block_map_path=block_map)
+        adapter.connect()
+        logger.info("VFS: Mock Inovance Adapter initialized")
+
+    else:
+        raise ValueError(f"Unknown brand: {brand}. Supported: siemens, inovance, mock")
+
+    return PLCVirtualFS(adapter)
+
+
 # reconfigure UnicodeEncodeError prone default (i.e. windows-1252) to utf-8
 if sys.platform == "win32" and os.environ.get('PYTHONIOENCODING') is None:
     sys.stdin.reconfigure(encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 
-logger = logging.getLogger('plc-mcp-server')
-logger.info("Starting PLC MCP Server")
 
-# PROMPT_TEMPLATE = """
-# The assistants goal is to help the user to develop a plc project.
-# Here is some more information about mcp and this specific mcp server:
-# <mcp>
-# Prompts:
-
-# </mcp>
-# """
-
-async def main(project_path: str, project_name: str, use_vfs: bool = False):
-    logger.info(f"Starting PLC MCP Server with project path: {project_path} and project name: {project_name}")
+async def main(
+    project_path: str,
+    project_name: str,
+    use_vfs: bool = False,
+    brand: str = "siemens",
+    host: str = None,
+    port: int = 502,
+):
+    logger.info(
+        f"Starting PLC MCP Server: brand={brand}, "
+        f"project_path={project_path}, project_name={project_name}"
+    )
 
     server = Server("plc-mcp-server")
     tia_project = TiaProject(project_path, project_name)
@@ -61,15 +133,12 @@ async def main(project_path: str, project_name: str, use_vfs: bool = False):
     # Optional Virtual Filesystem integration layer
     vfs = None
     if use_vfs:
-        sys.path.insert(
-            0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-        )
-        _add_tia_dll_reference()
-        from plc_vfs import PLCVirtualFS
-        from plc_vfs.adapters.siemens import SiemensTIAAdapter
-        adapter = SiemensTIAAdapter(project_path)
-        vfs = PLCVirtualFS(adapter)
-        logger.info("VFS integration enabled")
+        try:
+            vfs = _create_vfs_adapter(brand, project_path, host=host, port=port)
+            logger.info(f"VFS integration enabled ({brand})")
+        except Exception as e:
+            logger.error(f"Failed to initialize VFS: {e}")
+            vfs = None
     else:
         logger.info("VFS integration disabled")
 
@@ -81,62 +150,21 @@ async def main(project_path: str, project_name: str, use_vfs: bool = False):
     @server.list_resources()
     async def handle_list_resources() -> list[types.Resource]:
         logger.debug("Handling list_resources request")
-        return [
-            # types.Resource(
-            #     uri=AnyUrl("memo://insights"),
-            #     name="Business Insights Memo",
-            #     description="A living document of discovered business insights",
-            #     mimeType="text/plain",
-            # )
-        ]
+        return []
 
     @server.read_resource()
     async def handle_read_resource(uri: AnyUrl) -> str:
-        # logger.debug(f"Handling read_resource request for URI: {uri}")
-        # if uri.scheme != "memo":
-        #     logger.error(f"Unsupported URI scheme: {uri.scheme}")
-        #     raise ValueError(f"Unsupported URI scheme: {uri.scheme}")
-
-        # path = str(uri).replace("memo://", "")
-        # if not path or path != "insights":
-        #     logger.error(f"Unknown resource path: {path}")
-        #     raise ValueError(f"Unknown resource path: {path}")
-
-        # return db._synthesize_memo()
         pass
 
     @server.list_prompts()
     async def handle_list_prompts() -> list[types.Prompt]:
         logger.debug("Handling list_prompts request")
-        return [
-            # types.Prompt(
-            #     name="mcp-demo",
-            #     description="A prompt to seed the database with initial data and demonstrate what you can do with an SQLite MCP Server + Claude",
-            #     arguments=[
-            #         types.PromptArgument(
-            #             name="topic",
-            #             description="Topic to seed the database with initial data",
-            #             required=True,
-            #         )
-            #     ],
-            # )
-        ]
+        return []
 
     @server.get_prompt()
     async def handle_get_prompt(name: str, arguments: dict[str, str] | None) -> types.GetPromptResult:
         logger.debug(f"Handling get_prompt request for {name} with args {arguments}")
-        # if name != "mcp-demo":
-        #     logger.error(f"Unknown prompt: {name}")
-        #     raise ValueError(f"Unknown prompt: {name}")
-
-        # if not arguments or "topic" not in arguments:
-        #     logger.error("Missing required argument: topic")
-        #     raise ValueError("Missing required argument: topic")
-
-        # topic = arguments["topic"]
-        # prompt = PROMPT_TEMPLATE.format(topic=topic)
         prompt = ""
-        # logger.debug(f"Generated prompt template for topic: {topic}")
         return types.GetPromptResult(
             description=f"",
             messages=[
@@ -157,11 +185,6 @@ async def main(project_path: str, project_name: str, use_vfs: bool = False):
             description="Open a PLC project",
             inputSchema={
                 "type": "object",
-                # "properties": {
-                #     "project_path": {"type": "string"},
-                #     "project_name": {"type": "string"},
-                # },
-                # "required": ["project_path", "project_name"],
             },
         ),
         # 增加一个tool，来连接plc 设备，输入参数是plc的名字
@@ -272,7 +295,7 @@ async def main(project_path: str, project_name: str, use_vfs: bool = False):
                     return [
                         types.TextContent(
                             type="text",
-                            text=f"Connected to project '{project_name}' via VFS",
+                            text=f"Connected to project '{project_name}' via VFS ({brand})",
                         )
                     ]
 
@@ -284,33 +307,7 @@ async def main(project_path: str, project_name: str, use_vfs: bool = False):
                         text=f"Opened project '{project_name}' at '{project_path}'",
                     )
                 ]
-            # elif name == "init-project":
-            #     project_path = arguments.get("project_path")
-            #     project_name = arguments.get("project_name")
-            #     if not project_path or not project_name:
-            #         raise ValueError("Missing project_path or project_name")
-            #     # Call the init_project function from demo.py
-            #     myproject = init_project(project_path, project_name)
-            #     return [
-            #         types.TextContent(
-            #             type="text",
-            #             text=f"Initialized project '{project_name}' at '{project_path}'",
-            #         )
-            #     ]
-            # elif name == "init-plc":
-            #     project = arguments.get("project")
-            #     plc_name = arguments.get("plc_name")
-            #     if not project or not plc_name:
-            #         raise ValueError("Missing project or plc_name")
-            #     # Call the init_plc function from demo.py
 
-            #     plc_device = init_plc(project, plc_name)
-            #     return [
-            #         types.TextContent(
-            #             type="text",
-            #             text=f"Initialized PLC '{plc_name}' in project",
-            #         )
-            #     ]
             elif name == "update-plc-block":
                 xml_path = arguments.get("absolute_xml_path")
                 if not xml_path:

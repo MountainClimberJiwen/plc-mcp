@@ -1,4 +1,3 @@
-"""
 PLC Universal MCP
 =================
 让 AI 用自然语言控制任何品牌的 PLC。
@@ -69,6 +68,7 @@ Supported Brands
 | Beckhoff TwinCAT | `beckhoff.py` | 🚧 WIP | Native | Native | Most open |
 | Rockwell Studio 5000 | `rockwell.py` | 📋 Planned | L5X/L5K | L5X/L5K | Limited SDK |
 | Schneider EcoStruxure | `schneider.py` | 📋 Planned | XEF/XML | XEF/XML | REST API |
+| **Inovance AM600/AC800** | **`inovance.py`** | **✅ Ready** | **Modbus TCP** | **Modbus TCP** | **CODESYS based** |
 
 Key Features
 ------------
@@ -161,8 +161,36 @@ beckhoff_code = SCLTranspiler.iec_to_beckhoff(iec_code)
 beckhoff = PLCVirtualFS(BeckhoffTwinCATAdapter("C:/TC/Project.tcproj"))
 beckhoff.echo(beckhoff_code, "/devices/PLC_1/blocks/Motor_FB.st")
 ```
+### 5. 汇川 AM600/AC800（Modbus TCP）
+```python
+from plc_vfs import PLCVirtualFS
+from plc_vfs.adapters.inovance import InovanceAM600Adapter
 
-Project Structure
+# 通过 Modbus TCP 连接汇川 PLC
+adapter = InovanceAM600Adapter(
+    host="192.168.1.10",
+    port=502,
+    block_map_path="config/inovance_blocks.json"
+)
+adapter.connect()
+
+vfs = PLCVirtualFS(adapter)
+
+# 读取变量监视值
+print(vfs.cat("/devices/PLC_1/blocks/Motor_Control.scl"))
+
+# 修改变量值
+vfs.echo('''
+VAR_INPUT
+  Start_Button : BOOL := TRUE;
+  Set_Speed : INT := 1500;
+END_VAR
+''', "/devices/PLC_1/blocks/Motor_Control.scl")
+```
+
+⚠️ **注意事项**：Modbus 协议不支持编译操作。修改程序块源码后，请使用 AutoShop IDE 或 CODESYS 编译并下载到 PLC。
+
+更多配置请参阅 [docs/inovance-setup.md](docs/inovance-setup.md)。
 -----------------
 ```
 plc-universal-mcp/
@@ -172,6 +200,7 @@ plc-universal-mcp/
 │   │   ├── adapters/         # 品牌适配器
 │   │   │   ├── base.py       # 适配器基类
 │   │   │   ├── siemens.py    # TIA Portal (pythonnet)
+│   │   │   ├── inovance.py   # 汇川 AM600/AC800 (Modbus TCP) <-- 新增
 │   │   │   ├── beckhoff.py   # TwinCAT (native text)
 │   │   │   └── mock.py       # Mock 适配器 (测试)
 │   │   ├── transpiler/       # 代码转换器

@@ -7,6 +7,7 @@ PLC Virtual Filesystem (PLC-VFS)
 
 from .core import PLCVirtualFS, PLCBlock
 from .adapters.base import PLCAdapter
+from .adapters.inovance import InovanceAM600Adapter
 
 __version__ = "0.1.0"
-__all__ = ["PLCVirtualFS", "PLCBlock", "PLCAdapter"]
+__all__ = ["PLCVirtualFS", "PLCBlock", "PLCAdapter", "InovanceAM600Adapter"]

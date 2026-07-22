@@ -11,7 +11,7 @@ dependencies = [
 
 
 [project.scripts]
-plc_tool = "plc_tool:main"
+plc_tool = "plc_tool.server:main"
 
 [tool.uv.workspace]
 members = ["simple_tool"]

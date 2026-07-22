@@ -19,4 +19,4 @@ dev-dependencies = ["pyright>=1.1.389"]
 
 
 [project.scripts]
-plc-tool = "plc_tool:main"
+plc-tool = "plc_tool.server:main"

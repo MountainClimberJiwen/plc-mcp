@@ -32,7 +32,7 @@ import json
 import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
-from ...core import PLCBlock
+from ..core import PLCBlock
 from .base import PLCAdapter
 
 

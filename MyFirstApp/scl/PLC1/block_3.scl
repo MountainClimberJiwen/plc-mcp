@@ -1,0 +1,55 @@
+FUNCTION_BLOCK Block_2
+VERSION : 0.1
+
+VAR
+    // 计数器变量
+    iCounter1 : INT := 1;    
+    iCounter2 : DINT := 100;
+    
+    // 布尔变量
+    bStart : BOOL := FALSE;
+    bStop : BOOL := TRUE;
+    
+    // 实数变量
+    rTemperature : REAL := 25.5;
+    rPressure : REAL := 101.325;
+    
+    // 时间变量
+    tDelay : TIME := T#2S;
+    tTimeout : TIME := T#5S;
+    
+    // 字符串变量
+    sMessage : STRING := 'Ready';
+    sStatus : STRING[30] := 'System Initialized';
+END_VAR
+
+VAR_TEMP
+    // 临时变量
+    tmpCalc : REAL;
+    tmpCount : INT;
+    tmpFlag : BOOL;
+END_VAR
+
+BEGIN
+    // 简单的程序逻辑
+    IF bStart AND NOT bStop THEN
+        iCounter1 := iCounter1 + 1;
+        tmpCalc := rTemperature * 1.9 + 32; // 摄氏度转华氏度
+        
+        IF iCounter1 >= 100 THEN
+            iCounter1 := 0;
+            tmpFlag := TRUE;
+            sStatus := 'Counter Reset';
+        END_IF;
+        
+        IF rPressure > 120.0 THEN
+            bStop := TRUE;
+            sMessage := 'Pressure Too High';
+        END_IF;
+    END_IF;
+    
+    // 计数器2递减
+    IF iCounter2 > 0 THEN
+        iCounter2 := iCounter2 - 1;
+    END_IF;
+END_FUNCTION_BLOCK

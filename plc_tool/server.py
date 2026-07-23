@@ -5,7 +5,7 @@ PLC Universal MCP Server
 AI 可以通过 MCP Tools 直接读写程序块、编译项目。
 
 支持品牌（由环境变量 PLC_MCP_BRAND 控制）：
-- inoproshop：汇川 InoProShop（基于 InoProShop_LIMIT_MCP）
+- inoproshop：汇川 InoProShop（基于 CODESYS IronPython 脚本）
 - inovance：汇川 AM600/AC800（基于 Modbus TCP）
 - siemens：西门子 TIA Portal（基于 TIA Openness）
 - mock：Mock InoProShop（用于测试）
@@ -42,7 +42,6 @@ def _create_adapter() -> PLCAdapter:
     if brand == "inoproshop":
         required = [
             "INOPROSHOP_PROJECT_PATH",
-            "INOPROSHOP_BUNDLE_PATH",
             "INOPROSHOP_CODESYS_PATH",
         ]
         missing = [k for k in required if not os.getenv(k)]
@@ -52,9 +51,10 @@ def _create_adapter() -> PLCAdapter:
             )
         return InoProShopAdapter(
             project_path=os.environ["INOPROSHOP_PROJECT_PATH"],
-            bundle_path=os.environ["INOPROSHOP_BUNDLE_PATH"],
             codesys_path=os.environ["INOPROSHOP_CODESYS_PATH"],
             profile=os.getenv("INOPROSHOP_PROFILE", "InoProShop(V1.9.0.1)"),
+            workspace=os.getenv("INOPROSHOP_WORKSPACE"),
+            timeout=float(os.getenv("INOPROSHOP_TIMEOUT", "300")),
         )
 
     if brand == "inovance":

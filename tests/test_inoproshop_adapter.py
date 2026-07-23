@@ -4,8 +4,8 @@
 测试范围：
 - MockInoProShopAdapter（无需真实 IDE）
 - InoProShopAdapter 的源码拆分 / 结构树解析辅助函数
-- InoProShopMCPClient 的 JSON-RPC 通信（使用伪造子进程）
 - PLCVirtualFS + MockInoProShopAdapter 集成
+- InoProShopScriptRunner 的解析逻辑（使用伪造 CODESYS 可执行文件）
 
 运行方式：
     pytest tests/test_inoproshop_adapter.py -v
@@ -25,9 +25,10 @@ from plc_vfs.adapters.inoproshop import (
     MockInoProShopAdapter,
     _extract_pou_names,
     _find_node,
+    _find_standard_template,
     _split_source_code,
 )
-from plc_vfs.adapters.inoproshop_mcp_client import InoProShopMCPClient
+from plc_vfs.adapters.inoproshop_script_runner import InoProShopScriptRunner
 from plc_vfs.core import PLCBlock, PLCVirtualFS
 
 
@@ -96,6 +97,46 @@ END_PROGRAM
         node = _find_node(structure, "Motor_FB")
         assert node is not None
         assert node["type"] == "FunctionBlock"
+
+
+class TestTemplateFinder:
+    """测试标准模板查找"""
+
+    def test_find_standard_template_returns_existing_file(self):
+        # 用一个真实存在的文件模拟模板
+        fd, path = tempfile.mkstemp(suffix=".project")
+        os.close(fd)
+        try:
+            exe_dir = os.path.dirname(path)
+            template_dir = os.path.join(exe_dir, "Templates")
+            os.makedirs(template_dir, exist_ok=True)
+            template_path = os.path.join(template_dir, "Standard.project")
+            os.rename(path, template_path)
+
+            result = _find_standard_template(
+                os.path.join(exe_dir, "InoProShop.exe"),
+                "InoProShop(V1.9.0.1)",
+            )
+            assert result == template_path
+        finally:
+            try:
+                os.unlink(template_path)
+            except Exception:
+                pass
+            try:
+                os.rmdir(template_dir)
+            except Exception:
+                pass
+
+    def test_find_standard_template_not_found(self):
+        fd, path = tempfile.mkstemp(suffix=".project")
+        os.close(fd)
+        os.unlink(path)
+        result = _find_standard_template(
+            os.path.join(os.path.dirname(path), "InoProShop.exe"),
+            "InoProShop(V1.9.0.1)",
+        )
+        assert result is None
 
 
 # === Mock 适配器测试 ===
@@ -193,94 +234,163 @@ END_PROGRAM
         assert "---" in diff or "+++" in diff
 
 
-# === MCP 客户端测试 ===
+# === ScriptRunner 测试 ===
 
 @pytest.fixture
-def fake_mcp_server():
-    """创建一个伪造的 MCP 子进程脚本，并返回其路径"""
-    script = '''
-import json
+def fake_codesys_exe():
+    """创建一个伪造的 CODESYS 可执行脚本，模拟 --runscript 行为。"""
+    py_script = r'''
 import sys
+import os
 
-def send(obj):
-    sys.stdout.write(json.dumps(obj) + "\\n")
-    sys.stdout.flush()
+# 模拟 InoProShop.exe 参数解析：--profile=... --runscript=<py>
+runscript = None
+for arg in sys.argv[1:]:
+    if arg.startswith("--runscript="):
+        runscript = arg[len("--runscript="):]
 
-for line in sys.stdin:
-    line = line.strip()
-    if not line:
-        continue
-    try:
-        msg = json.loads(line)
-    except Exception:
-        continue
+if runscript is None:
+    sys.stderr.write("missing --runscript\n")
+    sys.exit(2)
 
-    method = msg.get("method")
-    msg_id = msg.get("id")
+# 从脚本里提取 _RESULT_FILE 路径
+result_file = None
+with open(runscript, "r", encoding="utf-8") as f:
+    for line in f:
+        if "_RESULT_FILE =" in line:
+            line = line.strip()
+            quote = "'" if "r'" in line else '"'
+            start = line.find(quote)
+            end = line.rfind(quote)
+            if start != -1 and end != -1 and end > start:
+                result_file = line[start+1:end]
+            break
 
-    if method == "initialize":
-        send({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "result": {
-                "protocolVersion": "2024-11-05",
-                "serverInfo": {"name": "fake", "version": "1.0"},
-            },
-        })
-    elif method == "tools/call":
-        name = msg["params"]["name"]
-        if name == "get_pou_code":
-            text = json.dumps({
-                "declaration": "VAR_INPUT\\n  x : INT;\\nEND_VAR",
-                "implementation": "x := 1;",
-            })
-            send({
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {"content": [{"type": "text", "text": text}]},
-            })
-        else:
-            send({
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {"content": [{"type": "text", "text": "ok"}]},
-            })
+if result_file is None:
+    sys.stderr.write("could not find _RESULT_FILE\n")
+    sys.exit(3)
+
+class FakeProject:
+    def __init__(self):
+        self.path = r"C:\fake\test.project"
+        self.name = "test"
+    def save(self):
+        pass
+
+class FakeProjects:
+    def __init__(self):
+        self._primary = FakeProject()
+    @property
+    def primary(self):
+        return self._primary
+    def open(self, path):
+        self._primary.path = path
+        return self._primary
+
+# 让脚本里的 "import scriptengine as _se_hdr" 能成功
+fake_se = type("FakeScriptEngine", (), {"projects": FakeProjects()})
+sys.modules["scriptengine"] = fake_se()
+
+import json as _json
+
+globs = {
+    "json": _json,
+    "rlog": lambda s: open(result_file, "ab").write((str(s)+"\n").encode("utf-8")),
+}
+
+with open(runscript, "r", encoding="utf-8") as f:
+    source = f.read()
+
+exec(source, globs)
+
+# exec 完成后，如果脚本没写标记，默认加一个成功标记
+with open(result_file, "r", encoding="utf-8") as f:
+    content = f.read()
+if "SCRIPT_SUCCESS" not in content and "SCRIPT_ERROR" not in content:
+    with open(result_file, "ab") as f:
+        f.write(b"SCRIPT_SUCCESS: fake\n")
 '''
-    fd, path = tempfile.mkstemp(suffix=".py")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(script)
-    yield path
-    os.unlink(path)
+
+    tmp_dir = tempfile.mkdtemp()
+    py_path = os.path.join(tmp_dir, "fake_codesys.py")
+    exe_path = os.path.join(tmp_dir, "fake_codesys")
+
+    with open(py_path, "w", encoding="utf-8") as f:
+        f.write(py_script)
+
+    # 用 shell 包装器调用 python 解释器，模拟真实可执行文件
+    with open(exe_path, "w", encoding="utf-8") as f:
+        f.write(f'#!/bin/sh\nexec "{sys.executable}" "{py_path}" "$@"\n')
+
+    os.chmod(exe_path, 0o755)
+
+    yield exe_path
+
+    # 清理
+    try:
+        os.unlink(py_path)
+    except Exception:
+        pass
+    try:
+        os.unlink(exe_path)
+    except Exception:
+        pass
+    try:
+        os.rmdir(tmp_dir)
+    except Exception:
+        pass
 
 
-class TestInoProShopMCPClient:
-    """测试 InoProShopMCPClient 的 JSON-RPC 通信"""
+class TestInoProShopScriptRunner:
+    """测试 InoProShopScriptRunner 与伪造 CODESYS 的交互。"""
 
-    def test_call_tool_returns_parsed_json(self, fake_mcp_server):
-        client = InoProShopMCPClient(
-            command=sys.executable,
-            args=[fake_mcp_server],
+    def test_run_open_project(self, fake_codesys_exe):
+        runner = InoProShopScriptRunner(
+            codesys_path=fake_codesys_exe,
+            profile="TestProfile",
             timeout=10.0,
         )
-        try:
-            result = client.call_tool("get_pou_code", {"pou_path": "Main"})
-            assert isinstance(result, dict)
-            assert "declaration" in result
-            assert "implementation" in result
-        finally:
-            client.close()
+        from plc_vfs.adapters import inoproshop_scripts as scripts
 
-    def test_call_tool_returns_text(self, fake_mcp_server):
-        client = InoProShopMCPClient(
-            command=sys.executable,
-            args=[fake_mcp_server],
+        result = runner.run_script("open_project", scripts.build_open_project(r"C:\fake\test.project"))
+        assert result["success"] is True
+        assert "SCRIPT_SUCCESS" in result["output"]
+
+    def test_run_get_project_structure(self, fake_codesys_exe):
+        runner = InoProShopScriptRunner(
+            codesys_path=fake_codesys_exe,
+            profile="TestProfile",
             timeout=10.0,
         )
-        try:
-            result = client.call_tool("compile_project", {})
-            assert result == "ok"
-        finally:
-            client.close()
+        from plc_vfs.adapters import inoproshop_scripts as scripts
+
+        result = runner.run_script(
+            "get_project_structure",
+            scripts.build_get_project_structure(),
+        )
+        assert result["success"] is True
+        assert "SCRIPT_SUCCESS" in result["output"]
+
+    def test_transformed_print_goes_to_result_file(self, fake_codesys_exe):
+        runner = InoProShopScriptRunner(
+            codesys_path=fake_codesys_exe,
+            profile="TestProfile",
+            timeout=10.0,
+        )
+        # 业务脚本里用 print 而不是 rlog，runner 应该把它转成 rlog
+        result = runner.run_script(
+            "print_test",
+            'print("SCRIPT_SUCCESS: print_test")\nsys.exit(0)\n',
+        )
+        assert result["success"] is True
+        assert "print_test" in result["output"]
+
+    def test_missing_executable_raises(self):
+        fd, path = tempfile.mkstemp()
+        os.close(fd)
+        os.unlink(path)
+        with pytest.raises(FileNotFoundError):
+            InoProShopScriptRunner(codesys_path=path, profile="TestProfile")
 
 
 # === 运行入口 ===

@@ -50,6 +50,7 @@ def _create_vfs_adapter(brand: str, project_path: str, host: str = None, port: i
 
     from plc_vfs import PLCVirtualFS
     from plc_vfs.adapters.inovance import InovanceAM600Adapter, MockInovanceAdapter
+    from plc_vfs.adapters.inoproshop import InoProShopAdapter, MockInoProShopAdapter
 
     if brand == "siemens":
         _add_tia_dll_reference()
@@ -85,6 +86,28 @@ def _create_vfs_adapter(brand: str, project_path: str, host: str = None, port: i
             adapter = MockInovanceAdapter(block_map_path=block_map)
             adapter.connect()
 
+    elif brand == "inoproshop":
+        codesys_path = os.environ.get("INOPROSHOP_CODESYS_PATH")
+        if not codesys_path:
+            raise ValueError("INOPROSHOP_CODESYS_PATH environment variable is required for inoproshop brand")
+        profile = os.environ.get("INOPROSHOP_PROFILE", "InoProShop(V1.9.0.1)")
+        workspace = os.environ.get("INOPROSHOP_WORKSPACE")
+        timeout = float(os.environ.get("INOPROSHOP_TIMEOUT", "300"))
+        adapter = InoProShopAdapter(
+            project_path=project_path,
+            codesys_path=codesys_path,
+            profile=profile,
+            workspace=workspace,
+            timeout=timeout,
+        )
+        adapter.connect()
+        logger.info("VFS: InoProShop Adapter connected")
+
+    elif brand == "inoproshop-mock":
+        adapter = MockInoProShopAdapter()
+        adapter.connect()
+        logger.info("VFS: Mock InoProShop Adapter initialized")
+
     elif brand == "mock":
         # 通用 Mock 适配器（用于测试）
         block_map = project_path if os.path.exists(project_path) else None
@@ -100,7 +123,7 @@ def _create_vfs_adapter(brand: str, project_path: str, host: str = None, port: i
         logger.info("VFS: Mock Inovance Adapter initialized")
 
     else:
-        raise ValueError(f"Unknown brand: {brand}. Supported: siemens, inovance, mock")
+        raise ValueError(f"Unknown brand: {brand}. Supported: siemens, inovance, inoproshop, inoproshop-mock, mock")
 
     return PLCVirtualFS(adapter)
 

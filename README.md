@@ -65,6 +65,7 @@ Supported Brands
 | Brand | Adapter | Status | Text Import | Text Export | Notes |
 |-------|---------|--------|-------------|-------------|-------|
 | Siemens TIA Portal | `siemens.py` | ✅ Ready | Openness API | Openness API | Windows only |
+| **Inovance InoProShop** | **`inoproshop.py`** | **✅ Ready** | **CODESYS Script** | **CODESYS Script** | **Python-native, no Node bundle** |
 | Beckhoff TwinCAT | `beckhoff.py` | 🚧 WIP | Native | Native | Most open |
 | Rockwell Studio 5000 | `rockwell.py` | 📋 Planned | L5X/L5K | L5X/L5K | Limited SDK |
 | Schneider EcoStruxure | `schneider.py` | 📋 Planned | XEF/XML | XEF/XML | REST API |
@@ -191,6 +192,50 @@ END_VAR
 ⚠️ **注意事项**：Modbus 协议不支持编译操作。修改程序块源码后，请使用 AutoShop IDE 或 CODESYS 编译并下载到 PLC。
 
 更多配置请参阅 [docs/inovance-setup.md](docs/inovance-setup.md)。
+
+### 6. 汇川 InoProShop（CODESYS IronPython）
+```python
+from plc_vfs import PLCVirtualFS
+from plc_vfs.adapters.inoproshop import InoProShopAdapter
+
+# 直接通过 CODESYS Script Engine 驱动 InoProShop
+adapter = InoProShopAdapter(
+    project_path="C:/Projects/my_plc.project",
+    codesys_path="D:/Inovance Control/InoProShop/CODESYS/Common/InoProShop.exe",
+    profile="InoProShop(V1.9.0.1)",
+)
+adapter.connect()
+
+vfs = PLCVirtualFS(adapter)
+
+# 读取 POU 源码
+print(vfs.cat("/devices/PLC_1/blocks/Main.scl"))
+
+# 写入并编译
+vfs.echo('''PROGRAM Main
+VAR
+    counter : INT;
+END_VAR
+
+counter := counter + 1;
+END_PROGRAM
+''', "/devices/PLC_1/blocks/Main.scl")
+
+print(adapter.compile())
+```
+
+或通过环境变量启动 MCP Server：
+```bash
+export PLC_MCP_BRAND=inoproshop
+export INOPROSHOP_PROJECT_PATH="C:/Projects/my_plc.project"
+export INOPROSHOP_CODESYS_PATH="D:/Inovance Control/InoProShop/CODESYS/Common/InoProShop.exe"
+export INOPROSHOP_PROFILE="InoProShop(V1.9.0.1)"
+
+python -m plc_tool.server
+```
+
+更多配置请参阅 [docs/inoproshop-setup.md](docs/inoproshop-setup.md)。
+
 -----------------
 ```
 plc-universal-mcp/
@@ -199,10 +244,13 @@ plc-universal-mcp/
 │   │   ├── core.py           # VFS 实现 (cat, echo, diff, grep)
 │   │   ├── adapters/         # 品牌适配器
 │   │   │   ├── base.py       # 适配器基类
-│   │   │   ├── siemens.py    # TIA Portal (pythonnet)
-│   │   │   ├── inovance.py   # 汇川 AM600/AC800 (Modbus TCP) <-- 新增
-│   │   │   ├── beckhoff.py   # TwinCAT (native text)
-│   │   │   └── mock.py       # Mock 适配器 (测试)
+│   │   │   ├── siemens.py                   # TIA Portal (pythonnet)
+│   │   │   ├── inoproshop.py                # 汇川 InoProShop (CODESYS IronPython)
+│   │   │   ├── inoproshop_scripts.py        # IronPython 脚本模板
+│   │   │   ├── inoproshop_script_runner.py  # CODESYS --runscript 执行器
+│   │   │   ├── inovance.py                  # 汇川 AM600/AC800 (Modbus TCP)
+│   │   │   ├── beckhoff.py                  # TwinCAT (native text)
+│   │   │   └── mock.py                      # Mock 适配器 (测试)
 │   │   ├── transpiler/       # 代码转换器
 │   │   │   └── scl_transpiler.py
 │   │   └── mounts/           # 挂载点管理
